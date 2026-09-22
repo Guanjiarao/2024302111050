@@ -2,10 +2,10 @@
 #ifndef COURSE_SID_H
 #define COURSE_SID_H
 
-#define COURSE_SID 202430211050
+#define COURSE_SID 2024302111050
 
-#define LAB1_BANNER_PROTOCOL 2  /* 0=明文+换行 1=每字节后'.' 2=整段后回显校验和 */
-#define LAB1_STACK_KB 12  /* 内核栈大小(KB) */
+#define LAB1_BANNER_PROTOCOL 0  /* 0=明文+换行 1=每字节后'.' 2=整段后回显校验和 */
+#define LAB1_STACK_KB 4  /* 内核栈大小(KB) */
 #define LAB2_TICK 3  /* 时间片 tick */
 #define LAB2_BUF_SEMANTICS 0  /* 0=行缓冲 1=字符流 */
 #define LAB2_BUF_SIZE 96  /* 输入缓冲区字节 */
