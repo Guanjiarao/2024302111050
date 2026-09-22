@@ -16,7 +16,7 @@ This repository tracks the coursework based on xv6-riscv.
 - `xv6-riscv/xv6-riscv/`: public xv6 source tree and coursework notes.
 - `xv6-riscv/xv6-riscv/doc/lab0/`: Lab 0 deliverable drafts.
 - `xv6-riscv/xv6-riscv/doc/lab1-design-notes.md`: parameter-independent Lab 1 design notes.
-- `202430211050-kernel/202430211050-kernel/`: personalized Lab 1 baseline and implementation.
+- `202430211050-kernel/202430211050-kernel/`: personalized Lab 1 implementation for student `2024302111050` (the received package directory omitted one digit).
 
 Course handouts, generated binaries, and another student's personalized baseline are intentionally excluded.
 

@@ -14,3 +14,5 @@ These cases are kept separate from the production Banner because the grader comp
 | `printf("%%")` | `%` |
 
 The signed conversion avoids negating `INT_MIN` directly, and hexadecimal conversion emits lowercase digits without leading zeroes.
+
+The production build uses Banner protocol 0 for student ID `2024302111050`; these test strings are not emitted during normal boot.
