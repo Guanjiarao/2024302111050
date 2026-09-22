@@ -8,15 +8,17 @@ This repository tracks the coursework based on xv6-riscv.
 - RISC-V cross compiler and QEMU installed.
 - The public xv6 source builds and reaches its shell successfully.
 - Lab 0 control-flow, data-structure, and context-switch diagrams drafted.
-- Lab 1 architecture notes prepared without using another student's parameters.
+- Personalized Lab 1 boot, privilege transition, UART, printf, and banner implemented.
+- Lab 1 QEMU output matches `expect_banner.txt` byte for byte with no synchronous exceptions.
 
 ## Repository layout
 
 - `xv6-riscv/xv6-riscv/`: public xv6 source tree and coursework notes.
 - `xv6-riscv/xv6-riscv/doc/lab0/`: Lab 0 deliverable drafts.
 - `xv6-riscv/xv6-riscv/doc/lab1-design-notes.md`: parameter-independent Lab 1 design notes.
+- `202430211050-kernel/202430211050-kernel/`: personalized Lab 1 baseline and implementation.
 
-The personalized Lab 1 baseline will be added only after the official package for the repository owner is received. Course handouts, generated binaries, and another student's personalized baseline are intentionally excluded.
+Course handouts, generated binaries, and another student's personalized baseline are intentionally excluded.
 
 ## Build
 

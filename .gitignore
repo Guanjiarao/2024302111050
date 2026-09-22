@@ -12,7 +12,7 @@
 *.asm
 *.sym
 *.img
-kernel/kernel
+**/kernel/kernel
 mkfs/mkfs
 user/_*
 user/usys.S
@@ -21,7 +21,7 @@ user/usys.S
 # Runtime and debugging outputs.
 *.log
 test-xv6.out
-expect_banner.txt
 
 # Operating-system metadata.
 .DS_Store
+提交-lab1-*.zip
