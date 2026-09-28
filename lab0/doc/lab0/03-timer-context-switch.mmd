@@ -7,26 +7,26 @@ sequenceDiagram
   participant SW as swtch.S
   participant SC as scheduler（S 态/CPU 调度器栈）
 
-  U->>HW: 执行用户指令
-  HW->>HW: 时钟到期；scause=0x8000000000000005<br/>sepc=被打断 PC，SPP=U
-  HW->>TV: 按 stvec 跳到 uservec（特权级 U→S）
+  U->>HW: ① 用户程序正在运行
+  HW->>HW: ② 定时器到点，记住被打断的位置 sepc
+  HW->>TV: ③ 跳到 uservec（从用户态进入内核态 U→S）
   Note over TV: sscratch 暂存用户 a0；把 31 个用户通用寄存器写入 trapframe
   TV->>TV: sp ← trapframe.kernel_sp<br/>satp ← kernel_satp；sfence.vma
-  TV->>PK: jalr trapframe.kernel_trap → usertrap
-  PK->>PK: 保存 sepc 到 trapframe.epc<br/>devintr → clockintr；ticks++；返回 2
-  PK->>PK: yield：加 p->lock<br/>RUNNING → RUNNABLE
+  TV->>PK: ④ 切换到进程内核栈，进入 usertrap
+  PK->>PK: ⑤ devintr 认出这是时钟中断<br/>clockintr 更新 ticks
+  PK->>PK: ⑥ yield 主动让出 CPU<br/>RUNNING 正在运行 → RUNNABLE 等待运行
   PK->>SW: sched → swtch(&p->context, &cpu->context)
   Note over SW: context 只保存 ra、sp、s0-s11（14 个 callee-saved 寄存器）
-  SW->>SC: 恢复 cpu.context；sp 随之切到 CPU 专属调度器栈
-  SC->>SC: scheduler 扫描进程表并运行其他 RUNNABLE 进程
-  SC->>SC: 再次选中原进程：RUNNABLE → RUNNING
+  SW->>SC: ⑦ 保存进程内核现场，进入 CPU 专属调度器栈
+  SC->>SC: ⑧ scheduler 可以选择其他可运行进程
+  SC->>SC: ⑨ 再次选中原进程：RUNNABLE → RUNNING
   SC->>SW: swtch(&cpu->context, &p->context)
-  SW->>PK: 恢复进程内核 context 和内核栈<br/>从 sched → yield → usertrap 继续
-  PK->>PK: prepare_return：关中断；stvec=uservec<br/>填写 kernel_sp/satp/trap；sepc=trapframe.epc<br/>清 SPP、置 SPIE
-  PK->>TV: userret(user_satp)
-  TV->>TV: satp ← 用户页表；从 trapframe 恢复用户寄存器
-  TV->>HW: sret（特权级 S→U）
-  HW->>U: 从原 sepc 恢复执行
+  SW->>PK: ⑩ 恢复原进程的内核现场和内核栈
+  PK->>PK: ⑪ prepare_return 准备返回用户态<br/>恢复地址使用 trapframe.epc
+  PK->>TV: ⑫ 进入 userret
+  TV->>TV: ⑬ 恢复用户寄存器和用户页表
+  TV->>HW: ⑭ sret（从内核态回用户态 S→U）
+  HW->>U: ⑮ 从刚才被打断的位置继续运行
 
   Note over PK,SC: 分析批注：调度器必须使用 CPU 独立栈。若它留在退出进程的内核栈上，<br/>kwait/freeproc 回收该进程时会释放调度器仍在使用的栈，造成 use-after-free。
   Note over U,SC: trapframe 跨 U/S 边界保存完整用户现场；context 只服务内核线程与调度器之间的 swtch。<br/>QEMU -d int 能看到时钟陷入，但 swtch 是纯软件过程，需用 yield/scheduler 插桩验证。
