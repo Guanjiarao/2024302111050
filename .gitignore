@@ -40,3 +40,6 @@ test-xv6.out
 
 # Operating-system metadata.
 .DS_Store
+
+# Local package cache used only to render Lab0 diagrams.
+/.npm-cache/

@@ -1,0 +1,45 @@
+flowchart LR
+  subgraph PT["进程表快照：kexec 已提交，echo 尚未执行第一条用户指令"]
+    INIT["init<br/>state=SLEEPING<br/>在 wait 中等待 sh"]
+    SH["sh<br/>state=SLEEPING<br/>在 kwait 中等待 echo"]
+    ECHO["echo<br/>state=RUNNING（仍在 S 态）<br/>name=echo<br/>pagetable=新页表<br/>sz=镜像顶端<br/>trapframe.epc=ELF entry<br/>trapframe.sp=argv 下方"]
+    INIT -->|"parent"| SH
+    SH -->|"parent"| ECHO
+  end
+
+  subgraph AS["echo 的 Sv39 用户虚拟地址空间（高地址在上）"]
+    direction TB
+    TR["0x3ffffff000 = TRAMPOLINE<br/>V R X，U=0<br/>uservec / userret；与内核页表同 VA 同 PA"]
+    TF["0x3fffffe000 = TRAPFRAME<br/>V R W，U=0<br/>保存 31 个用户寄存器及内核入口信息"]
+    HOLE["未映射空洞"]
+    STACK["用户栈：1 页<br/>V R W U<br/>argv 字符串、argv[]、sp 16 字节对齐<br/>a0=argc，a1=argv"]
+    GUARD["Guard Page：1 页<br/>V R W，U=0<br/>uvmclear 清除 PTE_U，越界访问触发异常"]
+    DATA["ELF 可写段 / 数据<br/>V R W U"]
+    TEXT["ELF 代码段 / 只读内容<br/>V R X U<br/>VA 从 0 附近开始；epc=elf.entry"]
+    TR --> TF --> HOLE --> STACK --> GUARD --> DATA --> TEXT
+  end
+
+  subgraph FD["echo 的 ofile[] 快照"]
+    F0["fd 0 stdin"] --> FILE["同一个 struct file<br/>ref 由 dup/fork 增加<br/>类型 FD_DEVICE"]
+    F1["fd 1 stdout"] --> FILE
+    F2["fd 2 stderr"] --> FILE
+    FILE --> DEV["console 设备 inode<br/>devsw[CONSOLE]<br/>consoleread / consolewrite"]
+    CHAIN["init: open console → dup(0) → dup(0)<br/>init fork/exec sh → sh fork/exec echo<br/>exec 保留文件描述符"] -.-> FILE
+  end
+
+  ECHO --> AS
+  ECHO --> FD
+  TR -. "分析批注 1" .-> NOTE1["切换 satp 的代码本身位于 trampoline。<br/>若两套页表中的 VA 不同，切换后的下一条取指会失败。"]
+  GUARD -. "分析批注 2" .-> NOTE2["Guard Page 不是空洞：PTE 仍有效，但没有 U 位，<br/>所以用户态不可访问，内核仍可识别该映射。"]
+  ECHO -. "自检方法" .-> CHECK["Ctrl-P 核对进程状态；临时在 kexec 提交后 printk<br/>核对 sz、epc、sp 和 ofile[0..2]，验完撤销插桩。"]
+
+  classDef proc fill:#e3f2fd,stroke:#1565c0,color:#102a43,stroke-width:2px
+  classDef mem fill:#e8f5e9,stroke:#2e7d32,color:#17351b,stroke-width:2px
+  classDef special fill:#f3e5f5,stroke:#7b1fa2,color:#35103e,stroke-width:2px
+  classDef file fill:#fff3e0,stroke:#ef6c00,color:#4e2a00,stroke-width:2px
+  classDef note fill:#fffde7,stroke:#827717,color:#333,stroke-dasharray:5 5
+  class INIT,SH,ECHO proc
+  class STACK,DATA,TEXT mem
+  class TR,TF,GUARD,HOLE special
+  class F0,F1,F2,FILE,DEV,CHAIN file
+  class NOTE1,NOTE2,CHECK note

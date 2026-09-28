@@ -1,0 +1,38 @@
+flowchart TB
+  A["键盘输入 echo hi + 回车<br/>硬件"] -->|"UART 外部中断<br/>scause=...9"| B["S 态｜进程内核栈<br/>devintr → uartintr → consoleintr"]
+  B --> C["字符进入 cons.buf；回车推进 cons.w<br/>wakeup(&cons.r)"]
+  C --> D["Shell: SLEEPING → RUNNABLE"]
+  D --> E["S 态｜调度器栈<br/>scheduler 选中 Shell<br/>swtch(cpu.context, sh.context)"]
+  E --> F["S 态｜Shell 内核栈<br/>consoleread / sys_read 返回"]
+  F -->|"sret"| G["U 态｜Shell 用户栈<br/>getcmd → parsecmd"]
+  G -->|"fork() / ecall"| H["S 态｜Shell 内核栈<br/>sys_fork → kfork"]
+  H --> I["复制用户内存、trapframe、ofile、cwd<br/>child.a0=0；child=RUNNABLE"]
+  H --> J["父 Shell 得到 child PID<br/>wait() / ecall → kwait"]
+  J --> K["父 Shell 无僵尸子进程<br/>SLEEPING，转入 scheduler"]
+  I --> L["S 态｜调度器栈<br/>scheduler 选中子进程<br/>RUNNABLE → RUNNING"]
+  L -->|"sret"| M["U 态｜子进程用户栈<br/>fork 返回 0 → runcmd"]
+  M -->|"exec(echo, argv) / ecall"| N["S 态｜子进程内核栈<br/>sys_exec → kexec"]
+  N --> O["校验 ELF；建立新页表<br/>装载段；构造 guard + 用户栈 + argv"]
+  O --> P["原子替换 pagetable/sz<br/>epc=ELF entry，sp=新用户栈"]
+  P -->|"sret；不返回旧程序"| Q["U 态｜echo 用户栈<br/>_start → main(argc, argv)"]
+  Q -->|"write(fd=1, hi+换行, 3) / ecall"| R["S 态｜echo 内核栈<br/>sys_write → filewrite → consolewrite → uartwrite"]
+  R --> S["UART 显示 hi"]
+  S -->|"exit(0) / ecall"| T["S 态｜echo 内核栈<br/>kexit：关文件、唤醒父进程<br/>RUNNING → ZOMBIE → sched"]
+  T --> U["S 态｜调度器栈<br/>scheduler 重新选中 Shell"]
+  U --> V["S 态｜Shell 内核栈<br/>kwait 找到 ZOMBIE → freeproc<br/>wait 返回 child PID"]
+  V -->|"sret"| W["U 态｜Shell 用户栈<br/>下一轮 getcmd 输出 $<br/>随后 read 再次阻塞"]
+
+  H -. "分析批注 1" .-> X["fork 只有一次 ecall：kfork 复制 trapframe 后把<br/>子进程 a0 写成 0；父进程 a0 由 syscall 写入 child PID。"]
+  N -. "分析批注 2" .-> Y["trampoline 在用户页表和内核页表中以相同 VA<br/>映射同一物理页；切换 satp 后下一条指令仍可取到。"]
+  F -. "自检" .-> Z["QEMU 实测：$ echo hi → hi → $<br/>Ctrl-P 可核对 sh 的 sleep/run 状态。"]
+
+  classDef user fill:#e8f5e9,stroke:#2e7d32,color:#17351b,stroke-width:2px
+  classDef kernel fill:#e3f2fd,stroke:#1565c0,color:#102a43,stroke-width:2px
+  classDef sched fill:#fff3e0,stroke:#ef6c00,color:#4e2a00,stroke-width:2px
+  classDef hardware fill:#f3e5f5,stroke:#7b1fa2,color:#35103e,stroke-width:2px
+  classDef note fill:#fffde7,stroke:#827717,color:#333,stroke-dasharray:5 5
+  class A,S hardware
+  class G,M,Q,W user
+  class B,C,D,F,H,I,J,K,N,O,P,R,T,V kernel
+  class E,L,U sched
+  class X,Y,Z note
