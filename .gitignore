@@ -8,6 +8,9 @@
 # The obsolete, misspelled package path must never be recommitted.
 /202430211050-kernel/
 
+# Private acceptance notes kept only in the local workspace.
+/doc/验收演示与问答.md
+
 # Submission archives are local artifacts.
 /提交-lab*.zip
 
