@@ -1,12 +1,17 @@
-# Personal baseline belonging to another student.
-2024302111231-kernel/
-
-# Course handouts are kept locally and are not redistributed.
-发布同学资料lab0/
+# Local course handouts and reference material.
+/发布同学资料lab0/
+/xv6-riscv/
+/2024302111231-kernel/
 *.docx
 *.pdf
 
-# xv6 build outputs.
+# The obsolete, misspelled package path must never be recommitted.
+/202430211050-kernel/
+
+# Submission archives are local artifacts.
+/提交-lab*.zip
+
+# Build outputs.
 *.o
 *.d
 *.asm
@@ -24,4 +29,3 @@ test-xv6.out
 
 # Operating-system metadata.
 .DS_Store
-提交-lab1-*.zip
