@@ -27,6 +27,11 @@
 mkfs/mkfs
 user/_*
 user/usys.S
+**/user-flat/
+**/__pycache__/
+/lab2/user/badecall.c
+/lab2/user/bufstorm.c
+**/kernel/userimg.S
 .gdbinit
 
 # Runtime and debugging outputs.

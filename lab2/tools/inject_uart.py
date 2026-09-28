@@ -23,10 +23,7 @@ import time
 
 QEMU = "qemu-system-riscv64"
 QEMU_ARGS = ["-machine", "virt", "-bios", "none", "-kernel", "kernel/kernel",
-             "-m", "128M", "-smp", "1", "-nographic",
-             "-global", "virtio-mmio.force-legacy=false",
-             "-drive", "file=fs.img,if=none,format=raw,id=x0",
-             "-device", "virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"]
+             "-m", "128M", "-smp", "1", "-nographic"]
 
 
 def main():
@@ -58,10 +55,10 @@ def main():
 
     def wait_prompt(timeout=10):
         t0 = time.time()
-        while "$ " not in buf and time.time() - t0 < timeout:
+        while "sh> " not in buf and time.time() - t0 < timeout:
             drain()
             time.sleep(0.1)
-        return "$ " in buf
+        return "sh> " in buf
 
     ok = wait_prompt()
     print(f"boot {'ok' if ok else 'TIMEOUT'}")
