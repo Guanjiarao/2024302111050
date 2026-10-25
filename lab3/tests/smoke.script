@@ -1,0 +1,8 @@
+EXPECT OSLAB1 sid=2024302111050 mod97=0x22
+EXPECT sh>
+SEND hi
+EXPECT hi: user program running, pid=[0-9]+
+EXPECT sh>
+SEND badecall
+EXPECT TEST-1 PASS
+EXPECT sh>
