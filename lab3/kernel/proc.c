@@ -1,6 +1,7 @@
 #include "types.h"
 #include "memlayout.h"
 #include "riscv.h"
+#include "course_sid.h"
 #include "proc.h"
 #include "defs.h"
 
@@ -172,7 +173,7 @@ proc_exec(const char *name)
 
   struct proc *p = current;
   uint64 *oldpt = p->pagetable;
-  uint64 *oldtf = p->trapframe;
+  struct trapframe *oldtf = p->trapframe;
   p->pagetable = newpt;
   p->trapframe = (struct trapframe *)newtf;
   p->sz = new_sz;
@@ -218,12 +219,14 @@ proc_fork(void)
   struct proc *child = 0;
   for (int i = 0; i < NPROC_LAB3; i++)
     if (procs[i].state == UNUSED) { child = &procs[i]; break; }
-  if (!child)
+  if (!child) {
     return -1;
+  }
 
   uint64 *childtf = kalloc();
-  if (!childtf)
+  if (!childtf) {
     return -1;
+  }
   uint64 *childpt = proc_pagetable(childtf);
   if (!childpt) {
     kfree(childtf);
@@ -251,7 +254,7 @@ proc_fork(void)
   parent->state = RUNNABLE;
   current = child;
   parent->trapframe->a0 = child->pid;
-  return child->pid;
+  userenter();
 }
 
 void
@@ -371,7 +374,7 @@ proc_sbrk(int n)
                  PTE_R | PTE_W | PTE_U) < 0)
       return (uint64)-1;
   } else if (n < 0) {
-    uint64 shrink = (uint64)(-(int64)n);
+    uint64 shrink = (uint64)(-(int)n);
     if (shrink > oldsz - p->heap_base)
       return (uint64)-1;
     newsz = oldsz - shrink;

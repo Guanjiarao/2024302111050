@@ -1,6 +1,7 @@
 #include "types.h"
 #include "riscv.h"
 #include "course_sid.h"
+#include "proc.h"
 #include "defs.h"
 
 #define BACKSPACE 0x100
