@@ -78,7 +78,7 @@ uint64 usertrap(void)
   }
 usertrap_done:
   prepare_return();
-  return 0;
+  return MAKE_SATP(trapped->pagetable);
 }
 
 //处理从 S 态进入内核的陷阱
