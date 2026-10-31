@@ -2,7 +2,7 @@
 
 本目录是学号 `2024302111050` 的 Lab3 工程，基于 Lab2 增量实现 SV39 三级页表、物理页分配器、用户进程隔离、受控拷贝和 EAGER `sbrk`。用户程序仍由 Makefile 编译并嵌入内核；不包含磁盘文件系统。
 
-个性化参数来自 `kernel/course_sid.h`：`LAB3_ALLOC_ORDER=2`（中点优先）、`LAB3_GUARD_PAGES=1`、`LAB3_MEMCAP_DELTA=10`。实现决策和验收要点见 [设计与验收笔记](设计与验收笔记.md)。
+个性化参数来自 `kernel/course_sid.h`：`LAB3_ALLOC_ORDER=2`（中点优先）、`LAB3_GUARD_PAGES=1`、`LAB3_MEMCAP_DELTA=10`。
 
 ## 构建与运行
 
