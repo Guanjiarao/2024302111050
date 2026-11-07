@@ -1,7 +1,7 @@
 WAIT 1000
 SEND spin &
-EXPECT spin 0
 EXPECT sh>
+EXPECT spin 0
 WAIT 500
 SEND hi
 EXPECT hi: user program running

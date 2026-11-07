@@ -13,6 +13,12 @@ ENTRY(_entry)
 
 BASE_ADDRESS = 0x80000000;
 
+PHDRS
+{
+  text PT_LOAD FLAGS(5);
+  data PT_LOAD FLAGS(6);
+}
+
 SECTIONS
 {
   . = BASE_ADDRESS;
@@ -24,20 +30,22 @@ SECTIONS
     *(trampsec)
     . = ALIGN(0x1000);
     ASSERT(. - trampoline == 0x1000, "trampoline larger than one page");
-  }
+  } :text
 
   .rodata : {        /* 只读数据:字符串常量等 */
     *(.rodata .rodata.*)
-  }
+  } :text
+
+  . = ALIGN(0x1000);
 
   .data : {          /* 已初始化数据 */
     *(.data .data.*)
-  }
+  } :data
 
   .bss : {           /* 未初始化数据:启动时由内核自行清零 */
     *(.bss .bss.*)
     *(.sbss*)
-  }
+  } :data
 
   /* 内核结束符号:lab3 的 kalloc 将从这里开始分配物理页 */
   kernel_end = .;

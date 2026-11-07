@@ -26,11 +26,7 @@ main(void)
   if (procinit() < 0)
     panic("cannot load sh");
 
-  // 打开 S 态中断“总开关”。
-  intr_on();
-
-  // 准备当前 sh 进程的用户上下文，经 userret/sret 进入 U 态执行 shell。
-  userenter();
+  scheduler();
 }
 
 void panic(const char *msg)

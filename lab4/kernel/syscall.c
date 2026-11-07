@@ -1,5 +1,6 @@
 #include "types.h"
 #include "memlayout.h"
+#include "riscv.h"
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
@@ -31,6 +32,33 @@ static uint64 sys_exec(void) {
 static uint64 sys_getpid(void) { return myproc()->pid; }
 static uint64 sys_sbrk(void) { return proc_sbrk((int)argraw(0)); }
 static uint64 sys_dumppt(void) { dump_pagetable(myproc()->pagetable); return 0; }
+static uint64 sys_pause(void) { return proc_pause((int)argraw(0)); }
+static uint64 sys_time_rdtime(void) { return r_time(); }
+static uint64 sys_setickets(void) {
+  int tickets = (int)argraw(0);
+  if (tickets < 1)
+    return -1;
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->tickets = tickets;
+  release(&p->lock);
+  return 0;
+}
+static uint64 sys_schedstat(void) {
+  int pid = (int)argraw(0);
+  uint64 cpu_addr = argraw(1);
+  uint64 slice_addr = argraw(2);
+  int cpu_ticks = 0;
+  int last_slice_ticks = 0;
+  if (proc_schedstat(pid, &cpu_ticks, &last_slice_ticks) < 0)
+    return -1;
+  struct proc *caller = myproc();
+  if (copyout(caller->pagetable, cpu_addr, &cpu_ticks, sizeof(cpu_ticks)) < 0 ||
+      copyout(caller->pagetable, slice_addr, &last_slice_ticks,
+              sizeof(last_slice_ticks)) < 0)
+    return -1;
+  return 0;
+}
 
 void syscall(void)
 {
@@ -48,6 +76,10 @@ void syscall(void)
   case SYS_getpid: ret = sys_getpid(); break;
   case SYS_sbrk: ret = sys_sbrk(); break;
   case SYS_dumppt: ret = sys_dumppt(); break;
+  case SYS_pause: ret = sys_pause(); break;
+  case SYS_schedstat: ret = sys_schedstat(); break;
+  case SYS_time_rdtime: ret = sys_time_rdtime(); break;
+  case SYS_setickets: ret = sys_setickets(); break;
   // 未实现或非法的调用号只返回 -1，不允许用户错误导致内核 panic。
   default: ret = -1; break;
   }

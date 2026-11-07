@@ -9,16 +9,17 @@ UFLAGS = $(CFLAGS) -mno-relax -I. -DSID=$(SID)
 QEMU = qemu-system-riscv64
 
 UPROGS = sh hi spin badecall bufstorm badaccess memcap dumppt copyedge guardtest \
-	 bench lottery_test stride_test
+	 bench lottery_test stride_test alt mlfq_test
 OBJS = kernel/entry.o kernel/start.o kernel/console.o kernel/uart.o \
        kernel/printf.o kernel/main.o kernel/plic.o kernel/kernelvec.o \
-       kernel/trampoline.o kernel/trap.o kernel/proc.o kernel/swtch.o kernel/syscall.o \
+       kernel/trampoline.o kernel/trap.o kernel/proc.o kernel/spinlock.o \
+       kernel/swtch.o kernel/syscall.o \
        kernel/kalloc.o kernel/vm.o kernel/userimg.o
 
 kernel/kernel: $(OBJS) kernel/kernel.ld
 	$(LD) -T kernel/kernel.ld -o $@ $(OBJS)
 
-kernel/%.o: kernel/%.c kernel/types.h kernel/riscv.h kernel/course_sid.h kernel/defs.h kernel/proc.h kernel/vm.h
+kernel/%.o: kernel/%.c kernel/types.h kernel/riscv.h kernel/course_sid.h kernel/defs.h kernel/proc.h kernel/spinlock.h kernel/vm.h
 	$(CC) $(CFLAGS) -Ikernel -c -o $@ $<
 
 kernel/%.o: kernel/%.S kernel/riscv.h kernel/memlayout.h

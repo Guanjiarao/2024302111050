@@ -1,0 +1,16 @@
+EXPECT sh>
+SEND bench
+EXPECT PASS: bench
+EXPECT sh>
+SEND bench
+EXPECT PASS: bench
+EXPECT sh>
+SEND bench
+EXPECT PASS: bench
+EXPECT sh>
+SEND mlfq_test
+EXPECT PASS: mlfq
+EXPECT sh>
+SEND bench
+EXPECT PASS: bench
+EXPECT sh>

@@ -1,36 +1,57 @@
-# 操作系统实践 Lab3
+# Lab4 进程上下文切换与两级 MLFQ
 
-本目录是学号 `2024302111050` 的 Lab3 工程，基于 Lab2 增量实现 SV39 三级页表、物理页分配器、用户进程隔离、受控拷贝和 EAGER `sbrk`。用户程序仍由 Makefile 编译并嵌入内核；不包含磁盘文件系统。
+- 学号：2024302111050
+- `LAB4_POLICY_ID = 0`
+- 高优先级时间片：`LAB2_TICK = 3` 个硬件时钟 tick
+- 低优先级时间片：6 个硬件时钟 tick
+- 默认票数记录值：`7 + COURSE_SID % 13 = 18`（MLFQ 不据此选进程）
 
-个性化参数来自 `kernel/course_sid.h`：`LAB3_ALLOC_ORDER=2`（中点优先）、`LAB3_GUARD_PAGES=1`、`LAB3_MEMCAP_DELTA=10`。
+## 功能概述
 
-## 构建与运行
+本目录从提交版 Lab3 独立建立，保留 SV39、用户地址校验、guard page、`dumppt` 和内存上限测试。Lab4 新增每进程锁、`wait_lock`、每 CPU 调度器上下文、独立内核栈、`swtch` 执行流切换、标准 `sleep/wakeup`、阻塞式 `pause`、时钟抢占、两级 MLFQ 以及 `schedstat/time_rdtime/setickets`。进程表容量为 64，QEMU 默认单核。
 
-在 WSL2 Ubuntu 终端运行：
+## 构建与启动
 
-```bash
-cd '/mnt/d/操作系统实践/lab3'
+在 WSL Ubuntu 中执行：
+
+```sh
+cd /mnt/d/操作系统实践/lab4
 make clean
 make
 make qemu
 ```
 
-启动后检查 Lab1 Banner、初始 `DUMP-PAGETABLE` 块和 `sh> ` 提示符。输入 `spin &` 可在后台启动忙循环进程，再输入 `hi` 验证 Shell 与 `spin` 轮流运行。输入 `dumppt` 可重放当前进程页表；输入 `badaccess`、`guardtest`、`copyedge` 和 `memcap` 可分别观察越权访问终止、保护页、跨页拷贝及内存配额行为。`memcap` 会分配并触碰大量页面，正常情况下需要几十秒。
+退出 QEMU：按 `Ctrl-A`，再按 `X`。
 
-退出 QEMU：按 `Ctrl-a`，松开后按 `x`。
+## 手工测试
 
-## 自动化回归
+进入 `sh>` 后可执行：
 
-```bash
-make test
+```text
+hi
+dumppt
+badaccess
+guardtest
+copyedge
+memcap
+alt
+bench
+mlfq_test
 ```
 
-该目标通过 Lab2 的 UART 注入工具依次运行冒烟、跨页拷贝、guard、官方 `badaccess`、页表重放和 `memcap` 检查。测试日志默认写到 `lab3/inject_uart.log`，属于本地运行产物。
+`bench` 应输出 `RESULT concurrent_children = 8` 和 `PASS: bench`。`mlfq_test` 应输出 `RESULT mlfq_slices = high:3 low:6 interactive_max:0` 和 `PASS: mlfq`。`lottery_test` 与 `stride_test` 会编译，但份额断言只适用于其规定的策略 ID，不用于证明本人的 ID 0 MLFQ。
 
-## 提交
+## 自动测试
 
-实验要求的基线标签为 `lab3-start`，验收版本标签为 `lab3-submit`。在验收版本提交后生成归档：
-
-```bash
-git archive --format=zip -o '提交-lab3-2024302111050.zip' lab3-submit
+```sh
+python3 tools/inject_uart.py --tree . --script tests/lab4.script
+python3 tools/inject_uart.py --tree . --script tests/mlfq.script
+python3 tools/inject_uart.py --tree . --script tests/lab3.script
+python3 tools/inject_uart.py --tree . --script tests/stress.script
 ```
+
+## 标签与归档
+
+- `lab4-start`：合并增量包并通过基线构建、Lab3 回归后的提交。
+- `lab4-submit`：最终实现与验收文档提交。
+- 归档命令：`git archive --format=zip -o 提交-lab4-2024302111050.zip lab4-submit`。
