@@ -10,7 +10,7 @@ QEMU = qemu-system-riscv64
 
 UPROGS = sh hi spin badecall bufstorm badaccess memcap dumppt copyedge guardtest \
 	 bench lottery_test stride_test alt mlfq_test
-UPROGS += zerocopy cowpair echo
+UPROGS += zerocopy cowpair echo cowtest
 OBJS = kernel/entry.o kernel/start.o kernel/console.o kernel/uart.o \
        kernel/printf.o kernel/main.o kernel/plic.o kernel/kernelvec.o \
        kernel/trampoline.o kernel/trap.o kernel/proc.o kernel/spinlock.o \

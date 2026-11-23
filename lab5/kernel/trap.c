@@ -51,6 +51,16 @@ usertrap(void)
   if (cause == 8) {
     p->trapframe->epc += 4;
     syscall();
+  } else if (cause == 15) {
+#if LAB5_KILL_SEMANTICS == 0
+    if (p->killed)
+      proc_exit(-1);
+#endif
+    if (cow_alloc(p->pagetable, r_stval()) < 0) {
+      printf("user trap cause=%x epc=%x stval=%x\n", (uint)cause,
+             (uint)r_sepc(), (uint)r_stval());
+      p->killed = 1;
+    }
   } else {
     int which_dev = devintr();
     if (which_dev == 2) {
@@ -71,6 +81,8 @@ usertrap(void)
       proc_exit(-1);
     }
   }
+  if (p->killed)
+    proc_exit(-1);
   prepare_return();
   return MAKE_SATP(myproc()->pagetable);
 }

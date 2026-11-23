@@ -16,6 +16,8 @@ main(void)
          (uint)(COURSE_SID % 97));
 
   kinit();
+  kref_selftest();
+  cowinit();
   kvminit();
   kvminithart();
 

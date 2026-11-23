@@ -1,6 +1,7 @@
 #include "types.h"
 #include "memlayout.h"
 #include "riscv.h"
+#include "param.h"
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
@@ -27,7 +28,47 @@ static uint64 sys_exec(void) {
   char name[64];
   if (copyinstr(myproc()->pagetable, name, argraw(0), sizeof(name)) < 0)
     return -1;
-  return proc_exec(name);
+
+  uchar *scratch = kalloc();
+  if (!scratch)
+    return -1;
+  char **argv = (char **)scratch;
+  uint64 cursor = (MAXARG + 1) * sizeof(char *);
+  uint64 uargv = argraw(1);
+  int argc = 0;
+  for (;;) {
+    uint64 uarg = 0;
+    if (!uargv || copyin(myproc()->pagetable, &uarg,
+                         uargv + argc * sizeof(uint64), sizeof(uarg)) < 0) {
+      kfree(scratch);
+      return -1;
+    }
+    if (!uarg)
+      break;
+    if (argc >= MAXARG) {
+      kfree(scratch);
+      return -1;
+    }
+    if (cursor >= PGSIZE ||
+        copyinstr(myproc()->pagetable, (char *)scratch + cursor, uarg,
+                  PGSIZE - cursor) < 0) {
+      kfree(scratch);
+      return -1;
+    }
+    argv[argc] = (char *)scratch + cursor;
+    while (cursor < PGSIZE && scratch[cursor])
+      cursor++;
+    if (cursor >= PGSIZE) {
+      kfree(scratch);
+      return -1;
+    }
+    cursor++;
+    argc++;
+  }
+  argv[argc] = 0;
+  int result = proc_exec(name, argv);
+  kfree(scratch);
+  return result;
 }
 static uint64 sys_getpid(void) { return myproc()->pid; }
 static uint64 sys_sbrk(void) { return proc_sbrk((int)argraw(0)); }
@@ -43,6 +84,14 @@ static uint64 sys_setickets(void) {
   p->tickets = tickets;
   release(&p->lock);
   return 0;
+}
+static uint64 sys_pmc(void) {
+  int which = (int)argraw(0);
+  if (which == 0)
+    return kcow_copy_count();
+  if (which == 1)
+    return kshared_count();
+  return -1;
 }
 static uint64 sys_schedstat(void) {
   int pid = (int)argraw(0);
@@ -80,6 +129,7 @@ void syscall(void)
   case SYS_schedstat: ret = sys_schedstat(); break;
   case SYS_time_rdtime: ret = sys_time_rdtime(); break;
   case SYS_setickets: ret = sys_setickets(); break;
+  case SYS_pmc: ret = sys_pmc(); break;
   // 未实现或非法的调用号只返回 -1，不允许用户错误导致内核 panic。
   default: ret = -1; break;
   }

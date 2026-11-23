@@ -3,6 +3,7 @@
 #include "riscv.h"
 #include "course_sid.h"
 #include "proc.h"
+#include "vm.h"
 #include "defs.h"
 
 #define PTE_A (1L << 6)
@@ -11,6 +12,13 @@
 pagetable_t kernel_pagetable;
 extern char kernel_end[];
 extern char trampoline[];
+static struct spinlock cow_lock;
+
+void
+cowinit(void)
+{
+  initlock(&cow_lock, "cow");
+}
 
 static void
 prune_empty(pagetable_t pagetable, uint64 va)
@@ -193,23 +201,103 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
+  uint64 mapped = 0;
   for (uint64 va = 0; va < PGROUNDUP(sz); va += PGSIZE) {
     pte_t *pte = walk(old, va, 0);
     if (!pte || !(*pte & PTE_V))
       continue;
     if (!(*pte & (PTE_R | PTE_W | PTE_X)))
-      return -1;
-    void *mem = kalloc();
-    if (!mem)
-      return -1;
+      goto bad;
     uint64 pa = PTE2PA(*pte);
-    for (uint64 i = 0; i < PGSIZE; i++)
-      ((uchar *)mem)[i] = ((uchar *)pa)[i];
-    if (mappages(new, va, PGSIZE, (uint64)mem, PTE_FLAGS(*pte) & ~PTE_V) < 0) {
-      kfree(mem);
-      return -1;
+    uint64 flags = PTE_FLAGS(*pte);
+    if (flags & PTE_W) {
+      flags = (flags & ~PTE_W) | PTE_COW;
+      *pte = PA2PTE(pa) | flags;
+    }
+#if LAB5_REFCNT_SCHEME == 0
+    if ((flags & PTE_COW) && kref_get(pa) >= 2) {
+      flags |= PTE_RSW1;
+      *pte |= PTE_RSW1;
+    }
+#endif
+    if (mappages(new, va, PGSIZE, pa, flags & ~PTE_V) < 0)
+      goto bad;
+    kref_inc(pa);
+    mapped = va + PGSIZE;
+  }
+  sfence_vma();
+  return 0;
+
+bad:
+  if (mapped)
+    uvmunmap(new, 0, mapped / PGSIZE, 1);
+  sfence_vma();
+  return -1;
+}
+
+int
+cow_alloc(pagetable_t pagetable, uint64 va)
+{
+  if (va >= MAXVA)
+    return -1;
+  va = PGROUNDDOWN(va);
+  int warn = 0;
+
+  acquire(&cow_lock);
+  pte_t *pte = walk(pagetable, va, 0);
+  if (!pte || !(*pte & PTE_V) || !(*pte & PTE_U)) {
+    release(&cow_lock);
+    return -1;
+  }
+  if (*pte & PTE_W) {
+    release(&cow_lock);
+    return 0;
+  }
+  if (!(*pte & PTE_COW)) {
+    release(&cow_lock);
+    return -1;
+  }
+
+  uint64 old_pa = PTE2PA(*pte);
+  uint64 flags = PTE_FLAGS(*pte);
+  uint64 refs = kref_get(old_pa);
+  if (refs == 1) {
+    flags = (flags & ~(PTE_COW | PTE_RSW1)) | PTE_W | PTE_D;
+    *pte = PA2PTE(old_pa) | flags;
+    sfence_vma();
+    release(&cow_lock);
+    return 0;
+  }
+  if (refs < 2) {
+    release(&cow_lock);
+    return -1;
+  }
+
+  uchar *new_page = kalloc();
+  if (!new_page) {
+    release(&cow_lock);
+    return -1;
+  }
+  for (uint64 i = 0; i < PGSIZE; i++)
+    new_page[i] = ((uchar *)old_pa)[i];
+  flags = (flags & ~(PTE_COW | PTE_RSW1)) | PTE_W | PTE_D;
+  *pte = PA2PTE(new_page) | flags;
+  kcow_copy_inc();
+  struct proc *p = myproc();
+  if (p) {
+    p->cow_copies++;
+    if (!p->cow_warned && p->cow_copies >= LAB5_COW_BUDGET) {
+      p->cow_warned = 1;
+      warn = 1;
     }
   }
+  kfree((void *)old_pa);
+  sfence_vma();
+  release(&cow_lock);
+
+  if (warn)
+    printf("[cow] pid=%d reached LAB5_COW_BUDGET=%d; continuing\n",
+           p->pid, LAB5_COW_BUDGET);
   return 0;
 }
 
@@ -239,13 +327,16 @@ copyout(pagetable_t pagetable, uint64 dstva, const void *src, uint64 len)
 {
   const uchar *s = src;
   while (len) {
-    uint64 pa = walkaddr(pagetable, dstva, PTE_W);
+    uint64 va0 = PGROUNDDOWN(dstva);
+    uint64 pa = walkaddr(pagetable, va0, PTE_W);
+    if (!pa && cow_alloc(pagetable, va0) == 0)
+      pa = walkaddr(pagetable, va0, PTE_W);
     if (!pa)
       return -1;
     uint64 n = PGSIZE - (dstva & (PGSIZE - 1));
     if (n > len)
       n = len;
-    pa += dstva & (PGSIZE - 1);
+    pa += dstva - va0;
     for (uint64 i = 0; i < n; i++)
       ((uchar *)pa)[i] = s[i];
     len -= n;

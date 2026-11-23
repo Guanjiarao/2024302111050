@@ -42,6 +42,8 @@ struct proc {
   int last_slice_ticks;
   int tickets;
   int mlfq_level;
+  int cow_copies;
+  int cow_warned;
   void *chan;
   struct proc *parent;
   struct trapframe *trapframe;

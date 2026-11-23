@@ -1,0 +1,26 @@
+EXPECT kref selftest: PASS
+EXPECT sh>
+SEND cowpair
+EXPECT T5-2 copies delta = 2 \(expect 2\)
+EXPECT T5-2 PASS: pair-write exact 2 copies, data isolated
+EXPECT sh>
+SEND zerocopy
+EXPECT hi: user program running
+EXPECT T5-1 copies: [0-9]+ -> [0-9]+ \(delta [012]\)
+EXPECT T5-1 PASS: fork-immediately-exec ~zero copy
+EXPECT sh>
+SEND echo hi
+EXPECT hi
+EXPECT T5-3 PASS: argc=2 argv\[0\]=echo aligned
+EXPECT sh>
+SEND bench
+EXPECT RESULT concurrent_children = 8
+EXPECT PASS: bench
+EXPECT sh>
+SEND memcap
+EXPECT TEST-4 PASS
+EXPECT sh>
+SEND cowtest
+EXPECT \[cow\] pid=[0-9]+ reached LAB5_COW_BUDGET=234; continuing
+EXPECT COWTEST PASS: sharing, faults, argv bounds, budget
+EXPECT sh>

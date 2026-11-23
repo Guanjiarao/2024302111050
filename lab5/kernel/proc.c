@@ -101,6 +101,8 @@ freeproc(struct proc *p)
   p->last_slice_ticks = 0;
   p->tickets = 0;
   p->mlfq_level = MLFQ_HIGH;
+  p->cow_copies = 0;
+  p->cow_warned = 0;
   p->chan = 0;
   p->parent = 0;
   p->trapframe = 0;
@@ -134,6 +136,8 @@ allocproc(void)
   p->last_slice_ticks = 0;
   p->tickets = 18;
   p->mlfq_level = MLFQ_HIGH;
+  p->cow_copies = 0;
+  p->cow_warned = 0;
   p->chan = 0;
   p->parent = 0;
   p->sz = 0;
@@ -189,7 +193,7 @@ load_image(uint64 *pagetable, struct uprog *u)
 }
 
 int
-proc_exec(const char *name)
+proc_exec(const char *name, char *const argv[])
 {
   struct uprog *u = findprog(name);
   if (!u)
@@ -204,9 +208,7 @@ proc_exec(const char *name)
     return -1;
   }
   if (load_image(newpt, u) < 0) {
-    uvmfree(newpt);
-    kfree(newtf);
-    return -1;
+    goto bad;
   }
 
   uint64 image_end = PGROUNDUP(u->memsz);
@@ -216,10 +218,36 @@ proc_exec(const char *name)
   if (new_sz >= TRAPFRAME ||
       uvmalloc(newpt, stack_base, new_sz,
                PTE_R | PTE_W | PTE_U) < 0) {
-    uvmfree(newpt);
-    kfree(newtf);
-    return -1;
+    goto bad;
   }
+
+  uint64 sp = new_sz;
+  uint64 ustack[MAXARG + 1];
+  int argc = 0;
+  if (argv) {
+    while (argc < MAXARG && argv[argc]) {
+      uint64 len = 0;
+      while (argv[argc][len])
+        len++;
+      len++;
+      if (len > PGSIZE || sp < len)
+        goto bad;
+      sp = (sp - len) & ~15L;
+      if (sp < stack_base || copyout(newpt, sp, argv[argc], len) < 0)
+        goto bad;
+      ustack[argc] = sp;
+      argc++;
+    }
+    if (argc == MAXARG && argv[argc])
+      goto bad;
+  }
+  ustack[argc] = 0;
+  uint64 argv_bytes = (argc + 1) * sizeof(uint64);
+  if (sp < argv_bytes)
+    goto bad;
+  sp = (sp - argv_bytes) & ~15L;
+  if (sp < stack_base || copyout(newpt, sp, ustack, argv_bytes) < 0)
+    goto bad;
 
   uint64 *oldpt = p->pagetable;
   struct trapframe *oldtf = p->trapframe;
@@ -231,12 +259,18 @@ proc_exec(const char *name)
   p->stack_base = stack_base;
   memzero(p->trapframe, sizeof(*p->trapframe));
   p->trapframe->epc = 0;
-  p->trapframe->sp = new_sz;
+  p->trapframe->sp = sp;
+  p->trapframe->a1 = sp;
   if (oldpt)
     uvmfree(oldpt);
   if (oldtf)
     kfree(oldtf);
-  return 0;
+  return argc;
+
+bad:
+  uvmfree(newpt);
+  kfree(newtf);
+  return -1;
 }
 
 int
@@ -255,7 +289,8 @@ procinit(void)
     return -1;
   initproc = p;
   mycpu()->proc = p;
-  if (proc_exec("sh") < 0) {
+  char *init_argv[] = { "sh", 0 };
+  if (proc_exec("sh", init_argv) < 0) {
     mycpu()->proc = 0;
     freeproc(p);
     release(&p->lock);

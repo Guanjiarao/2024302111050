@@ -31,6 +31,7 @@ def main():
     ap.add_argument("--tree", required=True)
     ap.add_argument("--script", required=True)
     ap.add_argument("--log", default="inject_uart.log")
+    ap.add_argument("--expect-timeout", type=float, default=10.0)
     args = ap.parse_args()
 
     with open(args.script) as f:
@@ -90,7 +91,7 @@ def main():
         elif op == "EXPECT":
             t0 = time.time()
             hit = False
-            while time.time() - t0 < 10:
+            while time.time() - t0 < args.expect_timeout:
                 drain()
                 match = re.search(arg, buf[expect_pos:], re.M)
                 if match:
