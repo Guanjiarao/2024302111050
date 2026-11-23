@@ -1,0 +1,27 @@
+EXPECT sh>
+SEND hi
+EXPECT hi: user program running
+EXPECT sh>
+SEND dumppt
+EXPECT DUMPPT COMMAND
+EXPECT DUMP-PAGETABLE begin
+EXPECT DUMP-PAGETABLE end
+EXPECT sh>
+SEND badaccess
+EXPECT TEST-3a PASS
+EXPECT TEST-3b PASS
+EXPECT sh>
+SEND guardtest
+EXPECT GUARD PASS
+EXPECT sh>
+SEND copyedge
+EXPECT COPYEDGE PASS
+EXPECT sh>
+SEND alt
+EXPECT PASS: alt preemption
+EXPECT sh>
+SEND bench
+EXPECT RESULT avg_fork_wait = [0-9]+
+EXPECT RESULT concurrent_children = 8
+EXPECT PASS: bench
+EXPECT sh>
